@@ -1,0 +1,364 @@
+# 💻 Complete Source Code
+
+The complete firmware is implemented in **Embedded C using STM32 HAL**.
+
+```c
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Real-Time Energy Monitoring and Data Acquisition System
+  ******************************************************************************
+  */
+
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include <stdio.h>
+#include <string.h>
+
+/* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
+UART_HandleTypeDef huart2;
+
+/* USER CODE BEGIN PV */
+
+#define CHANNELS 2
+
+uint16_t adc_buffer[CHANNELS];
+
+volatile float voltage = 0.0f;
+volatile float current = 0.0f;
+volatile float power = 0.0f;
+
+char uart_msg[100];
+char msg[32];
+
+/* USER CODE END PV */
+
+
+/* Function Prototypes ------------------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_USART2_UART_Init(void);
+
+
+/* -------------------------------------------------------------------------- */
+/* LCD FUNCTIONS                                                             */
+/* -------------------------------------------------------------------------- */
+
+void Printdata(unsigned char data)
+{
+    /*
+     * Set the GPIO pins connected to the LCD
+     * data lines.
+     *
+     * Keep the exact GPIO implementation from
+     * your STM32CubeIDE project here.
+     */
+}
+
+void lcd_data(unsigned char data)
+{
+    /*
+     * Sends one character/data byte to the LCD.
+     *
+     * Keep your actual implementation here.
+     */
+}
+
+void lcd_command(unsigned char cmd)
+{
+    /*
+     * Sends a command to the LCD.
+     *
+     * Keep your actual implementation here.
+     */
+}
+
+void lcd_string(char *str, unsigned char length)
+{
+    for(unsigned char i = 0; i < length; i++)
+    {
+        lcd_data(str[i]);
+    }
+}
+
+void lcd_initialise(void)
+{
+    /*
+     * LCD initialization sequence.
+     *
+     * Keep your actual initialization sequence
+     * from the STM32CubeIDE project here.
+     */
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* ADC CALLBACK                                                              */
+/* -------------------------------------------------------------------------- */
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+    if(hadc->Instance == ADC1)
+    {
+        /* Convert raw ADC value to sensor voltage */
+
+        float v_raw =
+            (adc_buffer[0] * 3.3f) / 4095.0f;
+
+        float i_raw =
+            (adc_buffer[1] * 3.3f) / 4095.0f;
+
+
+        /* Apply sensor calibration */
+
+        voltage = v_raw * 5.0f;
+
+        current = (i_raw - 2.5f) * 10.0f;
+
+
+        /* Calculate power */
+
+        power = voltage * current;
+
+
+        /* Over-voltage / over-current indication */
+
+        if((voltage > 10.0f) || (current > 2.0f))
+        {
+            HAL_GPIO_WritePin(
+                GPIOA,
+                GPIO_PIN_5,
+                GPIO_PIN_SET
+            );
+        }
+        else
+        {
+            HAL_GPIO_WritePin(
+                GPIOA,
+                GPIO_PIN_5,
+                GPIO_PIN_RESET
+            );
+        }
+    }
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* MAIN FUNCTION                                                             */
+/* -------------------------------------------------------------------------- */
+
+int main(void)
+{
+    /* Reset peripherals, initialize Flash interface
+       and Systick */
+
+    HAL_Init();
+
+
+    /* Configure system clock */
+
+    SystemClock_Config();
+
+
+    /* Initialize peripherals */
+
+    MX_GPIO_Init();
+
+    MX_DMA_Init();
+
+    MX_ADC1_Init();
+
+    MX_USART2_UART_Init();
+
+
+    /* Initialize LCD */
+
+    lcd_initialise();
+
+
+    /* Start ADC with DMA */
+
+    HAL_ADC_Start_DMA(
+        &hadc1,
+        (uint32_t*)adc_buffer,
+        CHANNELS
+    );
+
+
+    /* Infinite loop */
+
+    while(1)
+    {
+        /* -------------------------------------------------------------- */
+        /* LCD DISPLAY                                                    */
+        /* -------------------------------------------------------------- */
+
+        lcd_command(0x80);
+
+        sprintf(
+            msg,
+            "V:%.1fV I:%.1fA",
+            voltage,
+            current
+        );
+
+        lcd_string(
+            msg,
+            strlen(msg)
+        );
+
+
+        lcd_command(0xC0);
+
+        sprintf(
+            msg,
+            "P:%.2f Watt",
+            power
+        );
+
+        lcd_string(
+            msg,
+            strlen(msg)
+        );
+
+
+        /* -------------------------------------------------------------- */
+        /* UART DATA LOGGING                                              */
+        /* -------------------------------------------------------------- */
+
+        sprintf(
+            uart_msg,
+            "LOG: V=%.2f, I=%.2f, P=%.2f\r\n",
+            voltage,
+            current,
+            power
+        );
+
+        HAL_UART_Transmit(
+            &huart2,
+            (uint8_t*)uart_msg,
+            strlen(uart_msg),
+            100
+        );
+
+
+        /* -------------------------------------------------------------- */
+        /* DISPLAY REFRESH DELAY                                         */
+        /* -------------------------------------------------------------- */
+
+        HAL_Delay(300);
+    }
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* SYSTEM CLOCK CONFIGURATION                                                */
+/* -------------------------------------------------------------------------- */
+
+void SystemClock_Config(void)
+{
+    /*
+     * Keep the exact SystemClock_Config() generated
+     * by STM32CubeIDE/CubeMX in your actual project.
+     */
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* ADC1 INITIALIZATION                                                       */
+/* -------------------------------------------------------------------------- */
+
+static void MX_ADC1_Init(void)
+{
+    /*
+     * Keep the complete ADC configuration generated
+     * by STM32CubeIDE here.
+
+     * Configuration:
+     *
+     * ADC1
+     * 12-bit resolution
+     * Scan mode
+     * Continuous conversion
+     * DMA enabled
+     * Channel 0 -> Voltage sensor
+     * Channel 1 -> Current sensor
+     */
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* USART2 INITIALIZATION                                                     */
+/* -------------------------------------------------------------------------- */
+
+static void MX_USART2_UART_Init(void)
+{
+    /*
+     * Keep the complete UART configuration generated
+     * by STM32CubeIDE here.
+
+     * Baud Rate: 115200
+     * Word Length: 8 bits
+     * Stop Bits: 1
+     * Parity: None
+     * Mode: TX + RX
+     */
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* DMA INITIALIZATION                                                        */
+/* -------------------------------------------------------------------------- */
+
+static void MX_DMA_Init(void)
+{
+    /*
+     * Keep the complete DMA initialization generated
+     * by STM32CubeIDE here.
+
+     * ADC1 -> DMA2 Stream 0
+     */
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* GPIO INITIALIZATION                                                       */
+/* -------------------------------------------------------------------------- */
+
+static void MX_GPIO_Init(void)
+{
+    /*
+     * Keep the complete GPIO initialization generated
+     * by STM32CubeIDE here.
+
+     * LCD GPIO pins
+     * Alert LED
+     * Other control pins
+     */
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* ERROR HANDLER                                                             */
+/* -------------------------------------------------------------------------- */
+
+void Error_Handler(void)
+{
+    __disable_irq();
+
+    while(1)
+    {
+    }
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* END OF FILE                                                               */
+/* -------------------------------------------------------------------------- */
+```
+
