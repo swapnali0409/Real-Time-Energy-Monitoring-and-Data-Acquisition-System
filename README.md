@@ -443,8 +443,6 @@ Real-Time-Energy-Monitoring/
     └── circuit_diagram.png
 ```
 
-If you are uploading the complete **STM32CubeIDE project**, keep the generated project folders instead of manually copying only `main.c`.
-
 ---
 
 # 🧪 Testing and Output
