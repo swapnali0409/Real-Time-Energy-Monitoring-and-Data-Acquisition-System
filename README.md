@@ -112,7 +112,6 @@ The 16×2 LCD is interfaced in **8-bit mode** using GPIO pins.
 | EN         | PA6                     |
 | Data lines | PA8, PA9, PA10, PB3–PB6 |
 
-> Verify the final LCD pin mapping against the actual STM32CubeIDE project before connecting hardware.
 
 ---
 
